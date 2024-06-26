@@ -9,6 +9,7 @@ from flask import Flask, redirect, request, session, url_for, render_template, j
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
 from dotenv import dotenv_values
 from pathlib import Path
+import secrets
 
 # Determine the correct .env file path
 env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
@@ -27,7 +28,7 @@ print_env_vars()  # Print environment variables after loading
 
 # Flask app setup
 app = Flask(__name__)
-app.secret_key = env_vars.get('FLASK_SECRET_KEY', '73cacfc5')  # Use a secure, randomly generated secret key
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 
 # LinkedIn OAuth credentials
 CLIENT_ID = env_vars.get('CLIENT_ID')
