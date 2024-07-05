@@ -46,9 +46,9 @@ The apps will print the current logged in user and lead responses in last 180 da
 
 ## Limitations and Further Enhancements
 
-1. To further enhance the apps, developer may persist the access token in the apps and implement token refresh routine
-2. Developer may store the leads in database or sync to leads into CRM
-3. Developer may implement the UI logic to sync leads with muliple Ads account
+1. To further enhance the apps, developer may persist the access token in the apps and implement [token refresh](https://learn.microsoft.com/en-gb/linkedin/shared/authentication/authorization-code-flow?context=linkedin%2Fcontext&tabs=HTTPS1#step-5-refresh-access-token) routine before existing access token expires
+2. Developer may store the leads in database or sync downloded leads into CRM
+3. Developer may implement the UI logic to sync leads with muliple Ads accounts
 4. Developer may implement the UI logic to specifiy time period of leads sync and implement a scheduler to run the apps
 
 ## Troubleshooting
