@@ -10,6 +10,7 @@ from flask_login import LoginManager, UserMixin, login_required, login_user, log
 from dotenv import dotenv_values
 from pathlib import Path
 import secrets
+import logging
 
 # Determine the correct .env file path
 env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
@@ -35,17 +36,22 @@ CLIENT_ID = env_vars.get('CLIENT_ID')
 CLIENT_SECRET = env_vars.get('CLIENT_SECRET')
 REDIRECT_URI = 'http://127.0.0.1:5000/login/authorized'
 API_VERSION = env_vars.get('API_VERSION')
+WEBHOOK_URL = env_vars.get('WEBHOOK_URL')
 AUTHORIZATION_URL = 'https://www.linkedin.com/oauth/v2/authorization'
 TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken'
 
 # Lead sync parameters
 CMT_ACCOUNT_ID = env_vars.get('CMT_ACCOUNT_ID')
-START_TIME = int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+START_TIME = int((datetime.now() - timedelta(days=180)).timestamp() * 1000)
 END_TIME = int(datetime.now().timestamp() * 1000)
 
 # Login manager setup
 login_manager = LoginManager()
 login_manager.init_app(app)
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # User class for Flask-Login
 class User(UserMixin):
@@ -66,7 +72,7 @@ def login():
         'response_type': 'code',
         'client_id': CLIENT_ID,
         'redirect_uri': REDIRECT_URI,
-        'state': 'UVFNwd5fGXGnQOt',  # Should be random for security reasons
+        'state': secrets.token_urlsafe(16),  # Securely generated random state
         'scope': 'r_liteprofile,rw_ads,r_ads,r_emailaddress,r_marketing_leadgen_automation,r_organization_admin,r_events'  # Adjust scope based on your needs
     }
     url = requests.Request('GET', AUTHORIZATION_URL, params=params).prepare().url
@@ -99,6 +105,7 @@ def authorized():
         return "Failed to obtain access token.", 400
 
     session['linkedin_token'] = response_data['access_token']
+    logger.info('Access token obtained successfully.')
 
     # Retrieve user profile data
     headers = {
@@ -119,7 +126,7 @@ def authorized():
     last_name = profile_data['localizedLastName']
     email = email_data['elements'][0]['handle~']['emailAddress']
 
-    print(f"{user_id}, {first_name} {last_name}, Logged in with email: {email}")
+    logger.info(f"{user_id}, {first_name} {last_name}, Logged in with email: {email}, access token: {session['linkedin_token']}")
 
     user = User(user_id)
     login_user(user)
@@ -154,12 +161,20 @@ def sync_leads():
         leads_data = response.json().get('elements', [])
         all_extracted_data = []
 
+        print(leads_data)
         for element in leads_data:
             response_id = element.get('id')
             form_id = extract_form_id(element.get('versionedLeadGenFormUrn'))
             form_response = element.get('formResponse', {})
             submitted_at = element.get('submittedAt')  # Get submittedAt timestamp
             answers = form_response.get('answers', [])
+
+            # Extract account id, account name, campaign id, campaign name, and creative id
+            account_id = element.get('owner', {}).get('sponsoredAccount', '').replace('urn:li:sponsoredAccount:', '')
+            account_name = element.get('ownerInfo', {}).get('sponsoredAccountInfo', {}).get('name', '')
+            campaign_id = element.get('leadMetadataInfo', {}).get('sponsoredLeadMetadataInfo', {}).get('campaign', {}).get('id', '').replace('urn:li:sponsoredCampaign:', '')
+            campaign_name = element.get('leadMetadataInfo', {}).get('sponsoredLeadMetadataInfo', {}).get('campaign', {}).get('name', '')
+            creative_id = element.get('associatedEntityInfo', {}).get('associatedCreative', {}).get('id', '').replace('urn:li:sponsoredCreative:', '')
 
             # Convert submittedAt timestamp to human-readable UTC date
             submitted_at_utc = convert_epoch_to_utc(submitted_at)
@@ -169,27 +184,40 @@ def sync_leads():
 
             # Extract question answers
             extracted_data = extract_question_answer(answers, response_id, form_id, questions_info, form_name, submitted_at_utc)
+            for data in extracted_data:
+                data['account id'] = account_id
+                data['account name'] = account_name
+                data['campaign id'] = campaign_id
+                data['campaign name'] = campaign_name
+                data['creative id'] = creative_id
+
             all_extracted_data.extend(extracted_data)
 
         # Convert the extracted data to a pandas DataFrame
         df = pd.DataFrame(all_extracted_data)
-        print(df)
+        logging.info(f"Lead data synced and converted to DataFrame. Number of records: {len(df)}")
+
+        # Post JSON payload to webhook URL if it exists and is not an empty string
+        if WEBHOOK_URL:
+            # Convert DataFrame to JSON
+            json_payload = {"data": df.to_dict(orient='records')}
+            post_to_webhook(WEBHOOK_URL, json_payload)
+        else:
+            logger.warning('WEBHOOK_URL is not defined or is an empty string. Skipping webhook posting.')
 
         return df.to_html()  # Render the DataFrame as an HTML table
 
     except requests.exceptions.RequestException as req_err:
-        print(f"Request error: {req_err}")
+        logger.error(f"Request error: {req_err}")
         if response is not None:
-            print(f"Response status code: {response.status_code}")
-            print(f"Response text: {response.text}")
+            logger.error(f"Response status code: {response.status_code}")
+            logger.error(f"Response text: {response.text}")
         return jsonify({"error": "Request error", "message": str(req_err)}), 500
 
     except requests.exceptions.JSONDecodeError as json_err:
-        print(f"JSON decode error: {json_err}")
-        print(f"Response text: {response.text}")
+        logger.error(f"JSON decode error: {json_err}")
+        logger.error(f"Response text: {response.text}")
         return jsonify({"error": "JSON decode error", "message": str(json_err), "response_text": response.text}), 500
-
-    return redirect(url_for('chat'))
 
 def extract_form_id(versioned_lead_gen_form_urn):
     match = re.search(r':(\d+),', versioned_lead_gen_form_urn)
@@ -240,9 +268,24 @@ def convert_epoch_to_utc(epoch_ms):
             utc_datetime = datetime.utcfromtimestamp(epoch_seconds).replace(tzinfo=pytz.UTC)
             return utc_datetime.strftime('%Y-%m-%d %H:%M:%S UTC')
         except Exception as e:
-            print(f"Error converting epoch to UTC: {e}")
+            logger.error(f"Error converting epoch to UTC: {e}")
 
     return None
+
+def post_to_webhook(url, payload):
+    headers = {
+        'Content-Type': 'application/json',
+        'cache-control': 'no-cache'
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        logger.info('Payload successfully posted to webhook.')
+    except requests.exceptions.RequestException as req_err:
+        logger.error(f"Request error: {req_err}")
+        if response is not None:
+            logger.error(f"Response status code: {response.status_code}")
+            logger.error(f"Response text: {response.text}")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)

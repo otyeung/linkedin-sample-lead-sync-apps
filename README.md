@@ -31,25 +31,55 @@ Developer is welcome to build on top of it to add more functionality and polish 
 4. Install required Python library in virtual environment
    `pip install -r requirements.txt`
 
-5. Copy your client id, client secret from developer portal to .env file. You should set the API_VERSION to the latest one according to [LinkedIn API documentation](https://learn.microsoft.com/en-us/linkedin/marketing/versioning?view=li-lms-2024-06) in the format "YYYYMM", it should NOT be older than 12 months from current date. Just put it in HTTP header "Linkedin-Version". Add your LinkedIn Ads account id in .env file.
+5. Copy your client id, client secret from developer portal to .env file. You should set the API_VERSION to the latest one according to [LinkedIn API documentation](https://learn.microsoft.com/en-us/linkedin/marketing/versioning?view=li-lms-2024-06) in the format "YYYYMM", it should NOT be older than 12 months from current date, for example :
 
-6. Provision redirect_url (http://127.0.0.1:5000/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow.
+```
+CLIENT_ID=abcdefg
+CLIENT_SECRET=abcdefg
+API_VERSION=202406
+```
+
+6. Add your LinkedIn Ads account id in .env file <CMT_ACCOUNT_ID>, you must provide 1 Ads account id, for example :
+
+```
+CMT_ACCOUNT_ID=12345678
+```
+
+7. [OPTIONAL] If you want to post the leads to an external webhook URL, please add the URL in .env file <WEBHOOK_URL>, for example :
+
+```
+
+WEBHOOK_URL=<YOUR_WEBHOOK_URL>
+
+```
+
+- If you don't want to post the leads to external webhook URL, simply leave <WEBHOOK_URL> line blank :
+
+```
+
+WEBHOOK_URL=
+
+```
+
+Consider create a free webhook from this site for testing : https://webhook.site/
+
+8. Provision redirect_url (http://127.0.0.1:5000/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow.
    ![redirect_url](screenshots/redirect_url.png)
 
-7. Run flask app by
+9. Run flask app by
    `flask --app sample run`
 
-8. Open Chrome web browser in incognito window (or clear all caches and cookies from linkedin.com, www.linkedin.com, 127.0.0.1)
-   `http://127.0.0.1:5000/`
+10. Open Chrome web browser in incognito window (or clear all caches and cookies from linkedin.com, www.linkedin.com, 127.0.0.1)
+    `http://127.0.0.1:5000/`
 
-The apps will print the current logged in user and lead responses in last 180 days of LinkedIn Ads account on console, and leads will be sent to browser.
+The apps will print the current logged in user and lead responses in last 180 days of LinkedIn Ads account on console, and leads will be sent to browser, optionally it will post the leads to external webhook URL (if you have configured webhook URL in .env file).
 
 ## Limitations and Further Enhancements
 
 1. To further enhance the apps, developer may persist the access token in the apps and implement [token refresh](https://learn.microsoft.com/en-gb/linkedin/shared/authentication/authorization-code-flow?context=linkedin%2Fcontext&tabs=HTTPS1#step-5-refresh-access-token) routine before existing access token expires
-2. Developer may store the leads in database or sync downloded leads into CRM
-3. Developer may implement the UI logic to sync leads with muliple Ads accounts
-4. Developer may implement the UI logic to specifiy time period of leads sync and implement a scheduler to run the apps
+2. Developer may store the leads in database or sync leads into CRM
+3. Developer may implement the UI logic to sync leads from muliple Ads accounts
+4. Developer may implement the UI logic to adjust the time period of leads (other than 180 days) and implement a scheduler to run the apps periodically (daily, weekly)
 
 ## Troubleshooting
 
@@ -65,3 +95,5 @@ The apps will print the current logged in user and lead responses in last 180 da
 ![allow_access](screenshots/allow_access.png)
 
 ![sync_lead](screenshots/sync_lead.png)
+
+![webhook_url](screenshots/webhook%20url.png)
