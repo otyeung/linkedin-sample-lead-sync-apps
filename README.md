@@ -63,13 +63,22 @@ WEBHOOK_URL=
 
 Consider create a free webhook from this site for testing : https://webhook.site/
 
-8. Provision redirect_url (http://127.0.0.1:5000/login/authorized) and (https://<production_url>/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow. Add either "http://127.0.0.1:5000/login/authorized" or "https://<production_url>/login/authorized" in .env file, depending on your environment.
-   ![redirect_url](screenshots/redirect_url.png)
+8. Provision redirect_url (http://127.0.0.1:5000/login/authorized) and (https://<production_url>/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow.
 
-9. Run flask app by
-   `flask --app sample run`
+![redirect_url](screenshots/redirect_url.png)
 
-10. Open Chrome web browser in incognito window (or clear all caches and cookies from linkedin.com, www.linkedin.com, 127.0.0.1)
+9. Add either "http://127.0.0.1:5000/login/authorized" or "https://<production_url>/login/authorized" in .env file, depending on your environment.
+
+```
+
+REDIRECT_URI=http://127.0.0.1:5000/login/authorized (or https://<production_url>/login/authorized in production environment)
+
+```
+
+10. Run flask app by
+    `flask --app sample run`
+
+11. Open Chrome web browser in incognito window (or clear all caches and cookies from linkedin.com, www.linkedin.com, 127.0.0.1)
     `http://127.0.0.1:5000/`
 
 The apps will print the current logged in user and lead responses in last 180 days of LinkedIn Ads account on console, and leads will be sent to browser, optionally it will post the leads to external webhook URL (if you have configured webhook URL in .env file).
