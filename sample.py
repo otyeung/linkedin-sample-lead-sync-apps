@@ -1,9 +1,7 @@
 import os
 import re
 from datetime import datetime, timedelta
-#import json
 import requests
-#import pytz
 import pandas as pd
 from flask import Flask, redirect, request, session, url_for, render_template, jsonify, send_file
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
@@ -12,9 +10,16 @@ from pathlib import Path
 import secrets
 import logging
 
+# Configure the logging
+logging.basicConfig(level=logging.DEBUG,  # Set the logging level
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    handlers=[logging.StreamHandler()])
+#logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Determine the correct .env file path
 env_path = Path('.env')
-logging.debug(f"Loading {env_path} file")
+logger.debug(f"Loading {env_path} file")
 
 # Load environment variables from .env file if it exists
 if env_path.exists():
@@ -39,12 +44,12 @@ API_VERSION = env_vars.get('API_VERSION')
 WEBHOOK_URL = env_vars.get('WEBHOOK_URL')
 
 # Debug print to verify that the variables are loaded correctly
-logging.debug("Environment variables loaded: ")
-logging.debug(f"CLIENT_ID: {CLIENT_ID}")
-logging.debug(f"CLIENT_SECRET: {CLIENT_SECRET}")
-logging.debug(f"REDIRECT_URI: {REDIRECT_URI}")
-logging.debug(f"API_VERSION: {API_VERSION}")
-logging.debug(f"WEBHOOK_URL: {WEBHOOK_URL}")
+logger.debug("Environment variables loaded: ")
+logger.debug(f"CLIENT_ID: {CLIENT_ID}")
+logger.debug(f"CLIENT_SECRET: {CLIENT_SECRET}")
+logger.debug(f"REDIRECT_URI: {REDIRECT_URI}")
+logger.debug(f"API_VERSION: {API_VERSION}")
+logger.debug(f"WEBHOOK_URL: {WEBHOOK_URL}")
 
 # Flask app setup
 app = Flask(__name__)
@@ -61,9 +66,7 @@ END_TIME = int(datetime.now().timestamp() * 1000)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
 
 # User class for Flask-Login
 class User(UserMixin):
@@ -138,7 +141,8 @@ def authorized():
     last_name = profile_data['localizedLastName']
     email = email_data['elements'][0]['handle~']['emailAddress']
 
-    logger.info(f"{user_id}, {first_name} {last_name}, Logged in with email: {email}, access token: {session['linkedin_token']}")
+    logger.info(f"{user_id}, {first_name} {last_name}, Logged in with email: {email}")
+    logger.info(f"Access token: {session['linkedin_token']}")
 
     user = User(user_id)
     login_user(user)
@@ -164,14 +168,14 @@ def ads_accounts():
     else:
         ads_accounts = []
 
-    logging.debug(f"Ads accounts data: {ads_accounts}")
+    logger.debug(f"Ads accounts data: {ads_accounts}")
     return render_template('ads_accounts.html', ads_accounts=ads_accounts)
 
 @app.route('/sync_leads', methods=['POST'])
 @login_required
 def sync_leads():
     account_id = request.form.get('account_id')
-    logging.debug(f'Selected account_id: {account_id}')
+    logger.debug(f'Selected account_id: {account_id}')
     if not account_id:
         return "Account ID not provided", 400
 
@@ -190,7 +194,7 @@ def sync_leads():
         leads_data = response.json().get('elements', [])
         all_extracted_data = []
 
-        logging.debug(leads_data)
+        logger.debug(leads_data)
         for element in leads_data:
             response_id = element.get('id')
             form_id = extract_form_id(element.get('versionedLeadGenFormUrn'))
@@ -224,7 +228,7 @@ def sync_leads():
 
         # Convert the extracted data to a pandas DataFrame
         df = pd.DataFrame(all_extracted_data)
-        logging.info(f"Lead data synced and converted to DataFrame. Number of records: {len(df)}")
+        logger.info(f"Lead data synced and converted to DataFrame. Number of records: {len(df)}")
 
         # Check if the environment allows writing to the file system
         try:
@@ -239,9 +243,9 @@ def sync_leads():
             # Save the DataFrame to a CSV file
             csv_filename = 'leads.csv'
             df.to_csv(csv_filename, index=False)
-            logging.info(f"Leads data saved to {csv_filename}")
+            logger.info(f"Leads data saved to {csv_filename}")
         else:
-            logging.warning('File system is read-only. Unable to save CSV file.')
+            logger.warning('File system is read-only. Unable to save CSV file.')
 
         # Post JSON payload to webhook URL if it exists and is not an empty string
         if WEBHOOK_URL:
@@ -305,12 +309,12 @@ def get_ads_accounts():
     response = requests.get(accounts_url, headers=headers)
 
     if response.status_code != 200:
-        logging.error(f"Failed to retrieve ad accounts: {response.text}")
+        logger.error(f"Failed to retrieve ad accounts: {response.text}")
         return None
 
     accounts_data = response.json()
     if 'elements' not in accounts_data:
-        logging.error(f"Ad accounts data missing 'elements' key: {accounts_data}")
+        logger.error(f"Ad accounts data missing 'elements' key: {accounts_data}")
         return None
 
     accounts = accounts_data['elements']
@@ -325,7 +329,7 @@ def get_ads_accounts():
         })
 
     df = pd.DataFrame(data)
-    logging.debug(df)
+    logger.debug(df)
     return df
 
 def get_form_questions(sponsored_account_id, form_id):
