@@ -1,11 +1,11 @@
 import os
 import re
 from datetime import datetime, timedelta
-import json
+#import json
 import requests
-import pytz
+#import pytz
 import pandas as pd
-from flask import Flask, redirect, request, session, url_for, render_template, jsonify
+from flask import Flask, redirect, request, session, url_for, render_template, jsonify, send_file
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
 from dotenv import dotenv_values, load_dotenv
 from pathlib import Path
@@ -228,9 +228,26 @@ def sync_leads():
         logging.info(f"Lead data synced and converted to DataFrame. Number of records: {len(df)}")
 
         # Save the DataFrame to a CSV file
-        csv_filename = 'leads.csv'
-        df.to_csv(csv_filename, index=False)
-        logging.info(f"Leads data saved to {csv_filename}")
+        # csv_filename = 'leads.csv'
+        # df.to_csv(csv_filename, index=False)
+        # logging.info(f"Leads data saved to {csv_filename}")
+
+        # Check if the environment allows writing to the file system
+        try:
+            with open('test_file.txt', 'w') as test_file:
+                test_file.write('Testing write permissions')
+            os.remove('test_file.txt')
+            can_write_to_fs = True
+        except OSError:
+            can_write_to_fs = False
+
+        if can_write_to_fs:
+            # Save the DataFrame to a CSV file
+            csv_filename = 'leads.csv'
+            df.to_csv(csv_filename, index=False)
+            logging.info(f"Leads data saved to {csv_filename}")
+        else:
+            logging.warning('File system is read-only. Unable to save CSV file.')
 
         # Post JSON payload to webhook URL if it exists and is not an empty string
         if WEBHOOK_URL:
