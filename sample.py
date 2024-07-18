@@ -54,7 +54,6 @@ AUTHORIZATION_URL = 'https://www.linkedin.com/oauth/v2/authorization'
 TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken'
 
 # Lead sync parameters
-#CMT_ACCOUNT_ID = env_vars.get('CMT_ACCOUNT_ID')
 START_TIME = int((datetime.now() - timedelta(days=180)).timestamp() * 1000)
 END_TIME = int(datetime.now().timestamp() * 1000)
 
@@ -176,7 +175,7 @@ def sync_leads():
     if not account_id:
         return "Account ID not provided", 400
 
-    lead_sync_api_url = f'https://api.linkedin.com/rest/leadFormResponses?q=owner&owner=(sponsoredAccount:urn%3Ali%3AsponsoredAccount%3A{account_id})&leadType=(leadType:SPONSORED)&limitedToTestLeads=false&submittedAtTimeRange=(start:{START_TIME},end:{END_TIME})&fields=ownerInfo,associatedEntityInfo,leadMetadataInfo,owner,leadType,versionedLeadGenFormUrn,id,submittedAt,testLead,formResponse,form:(hiddenFields,creationLocale,name,id,content)&count=10&start=0'
+    lead_sync_api_url = f'https://api.linkedin.com/rest/leadFormResponses?q=owner&owner=(sponsoredAccount:urn%3Ali%3AsponsoredAccount%3A{account_id})&leadType=(leadType:SPONSORED)&limitedToTestLeads=false&submittedAtTimeRange=(start:{START_TIME},end:{END_TIME})&fields=ownerInfo,associatedEntityInfo,leadMetadataInfo,owner,leadType,versionedLeadGenFormUrn,id,submittedAt,testLead,formResponse,form:(hiddenFields,creationLocale,name,id,content)&count=1000&start=0'
     headers = {
         'Authorization': f"Bearer {session['linkedin_token']}",
         'cache-control': 'no-cache',
@@ -226,11 +225,6 @@ def sync_leads():
         # Convert the extracted data to a pandas DataFrame
         df = pd.DataFrame(all_extracted_data)
         logging.info(f"Lead data synced and converted to DataFrame. Number of records: {len(df)}")
-
-        # Save the DataFrame to a CSV file
-        # csv_filename = 'leads.csv'
-        # df.to_csv(csv_filename, index=False)
-        # logging.info(f"Leads data saved to {csv_filename}")
 
         # Check if the environment allows writing to the file system
         try:
