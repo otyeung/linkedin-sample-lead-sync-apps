@@ -7,17 +7,25 @@ import pytz
 import pandas as pd
 from flask import Flask, redirect, request, session, url_for, render_template, jsonify
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
-from dotenv import dotenv_values
+from dotenv import dotenv_values,load_dotenv
 from pathlib import Path
 import secrets
 import logging
 
 # Determine the correct .env file path
-env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
+#env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
+env_path = Path('.env')
 print(f"Loading {env_path} file")
 
 # Load environment variables into a dictionary
 env_vars = dotenv_values(dotenv_path=env_path)
+
+# Load environment variables from .env file if it exists
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+    env_vars = dotenv_values(dotenv_path=env_path)
+else:
+    env_vars = os.environ
 
 # Debug function to print environment variables
 def print_env_vars():
@@ -25,18 +33,29 @@ def print_env_vars():
     for key, value in env_vars.items():
         print(f"{key}: {value}")
 
-print_env_vars()  # Print environment variables after loading
+#print_env_vars()  # Print environment variables after loading
+
+# LinkedIn OAuth credentials
+CLIENT_ID = env_vars.get('CLIENT_ID')
+CLIENT_SECRET = env_vars.get('CLIENT_SECRET')
+REDIRECT_URI = env_vars.get('REDIRECT_URI')
+API_VERSION = env_vars.get('API_VERSION')
+WEBHOOK_URL = env_vars.get('WEBHOOK_URL')
+
+# Debug print to verify that the variables are loaded correctly
+print("Environment variables loaded: ")
+print(f"CLIENT_ID: {CLIENT_ID}")
+print(f"CLIENT_SECRET: {CLIENT_SECRET}")
+print(f"REDIRECT_URI: {REDIRECT_URI}")
+print(f"API_VERSION: {API_VERSION}")
+print(f"WEBHOOK_URL: {WEBHOOK_URL}")
 
 # Flask app setup
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 
-# LinkedIn OAuth credentials
-CLIENT_ID = env_vars.get('CLIENT_ID')
-CLIENT_SECRET = env_vars.get('CLIENT_SECRET')
-REDIRECT_URI = 'http://127.0.0.1:5000/login/authorized'
-API_VERSION = env_vars.get('API_VERSION')
-WEBHOOK_URL = env_vars.get('WEBHOOK_URL')
+
+
 AUTHORIZATION_URL = 'https://www.linkedin.com/oauth/v2/authorization'
 TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken'
 

@@ -31,7 +31,7 @@ Developer is welcome to build on top of it to add more functionality and polish 
 4. Install required Python library in virtual environment
    `pip install -r requirements.txt`
 
-5. Copy your client id, client secret from developer portal to .env file. You should set the API_VERSION to the latest one according to [LinkedIn API documentation](https://learn.microsoft.com/en-us/linkedin/marketing/versioning?view=li-lms-2024-06) in the format "YYYYMM", it should NOT be older than 12 months from current date, for example :
+5. Copy ".env.example" file to a new file ".env". Insert your client id, client secret values from developer portal to ".env" file. You should set the API_VERSION to the latest one according to [LinkedIn API documentation](https://learn.microsoft.com/en-us/linkedin/marketing/versioning?view=li-lms-2024-06) in the format "YYYYMM", it should NOT be older than 12 months from current date, for example :
 
 ```
 CLIENT_ID=abcdefg
@@ -63,7 +63,7 @@ WEBHOOK_URL=
 
 Consider create a free webhook from this site for testing : https://webhook.site/
 
-8. Provision redirect_url (http://127.0.0.1:5000/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow.
+8. Provision redirect_url (http://127.0.0.1:5000/login/authorized) and (https://<production_url>/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow. Add either "http://127.0.0.1:5000/login/authorized" or "https://<production_url>/login/authorized" in .env file, depending on your environment.
    ![redirect_url](screenshots/redirect_url.png)
 
 9. Run flask app by
