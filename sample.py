@@ -13,7 +13,7 @@ import secrets
 import logging
 
 # Determine the correct .env file path
-env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
+env_path = Path('.env')
 logging.debug(f"Loading {env_path} file")
 
 # Load environment variables from .env file if it exists
