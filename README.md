@@ -39,13 +39,7 @@ CLIENT_SECRET=abcdefg
 API_VERSION=202406
 ```
 
-6. Add your LinkedIn Ads account id in .env file <CMT_ACCOUNT_ID>, you must provide 1 Ads account id, for example :
-
-```
-CMT_ACCOUNT_ID=12345678
-```
-
-7. [OPTIONAL] If you want to post the leads to an external webhook URL, please add the URL in .env file <WEBHOOK_URL>, for example :
+6. [OPTIONAL] If you want to post the leads to an external webhook URL, please add the URL in .env file <WEBHOOK_URL>, for example :
 
 ```
 
@@ -63,11 +57,11 @@ WEBHOOK_URL=
 
 Consider create a free webhook from this site for testing : https://webhook.site/
 
-8. Provision redirect_url (http://127.0.0.1:5000/login/authorized) and (https://<production_url>/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow.
+7. Provision redirect_url (http://127.0.0.1:5000/login/authorized) and (https://<production_url>/login/authorized) in the apps under LinkedIn developer portal. This is NECESSARY to complete the OAuth 3-legged redirect flow.
 
 ![redirect_url](screenshots/redirect_url.png)
 
-9. Add either "http://127.0.0.1:5000/login/authorized" or "https://<production_url>/login/authorized" in .env file, depending on your environment.
+8. Add either "http://127.0.0.1:5000/login/authorized" or "https://<production_url>/login/authorized" in .env file, depending on your environment.
 
 ```
 
@@ -75,20 +69,19 @@ REDIRECT_URI=http://127.0.0.1:5000/login/authorized (or https://<production_url>
 
 ```
 
-10. Run flask app by
-    `flask --app sample run`
+9. Run flask app by
+   `flask --app sample run`
 
-11. Open Chrome web browser in incognito window (or clear all caches and cookies from linkedin.com, www.linkedin.com, 127.0.0.1)
+10. Open Chrome web browser in incognito window (or clear all caches and cookies from linkedin.com, www.linkedin.com, 127.0.0.1)
     `http://127.0.0.1:5000/`
 
-The apps will print the current logged in user and lead responses in last 180 days of LinkedIn Ads account on console, and leads will be sent to browser, optionally it will post the leads to external webhook URL (if you have configured webhook URL in .env file).
+The apps will print the current logged in user and lead responses in last 180 days of LinkedIn Ads account on console, and leads will be sent to browser, optionally it will post the leads to external webhook URL (if you have configured webhook URL in .env file). The apps will also export all leads locally to a csv file "leads.csv", if the file exists, it'll be overwritten.
 
 ## Limitations and Further Enhancements
 
 1. To further enhance the apps, developer may persist the access token in the apps and implement [token refresh](https://learn.microsoft.com/en-gb/linkedin/shared/authentication/authorization-code-flow?context=linkedin%2Fcontext&tabs=HTTPS1#step-5-refresh-access-token) routine before existing access token expires
 2. Developer may store the leads in database or sync leads into CRM
-3. Developer may implement the UI logic to sync leads from muliple Ads accounts
-4. Developer may implement the UI logic to adjust the time period of leads (other than 180 days) and implement a scheduler to run the apps periodically (daily, weekly)
+3. Developer may implement the UI logic to adjust the time period of leads (other than 180 days) and implement a scheduler to run the apps periodically (daily, weekly)
 
 ## Troubleshooting
 
@@ -102,6 +95,8 @@ The apps will print the current logged in user and lead responses in last 180 da
 ![linkedin_oauth](screenshots/linkedin_oauth.png)
 
 ![allow_access](screenshots/allow_access.png)
+
+![select_ads_account](screenshots/select_ads_account.png)
 
 ![sync_lead](screenshots/sync_lead.png)
 

@@ -1,32 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LinkedIn Lead Sync MVP Apps</title>
-    <!-- Add your CSS links and meta tags here -->
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        flex-direction: column;
+      }
+      .container {
+        background-color: #fff;
+        padding: 20px 40px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        text-align: center;
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+      .login-button {
+        background-color: #0077b5;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 4px;
+        text-decoration: none;
+      }
+      .login-button img {
+        vertical-align: middle;
+        margin-right: 10px;
+        height: 24px;
+      }
+      .login-button:hover {
+        background-color: #005f87;
+      }
+    </style>
   </head>
   <body>
-    <h1>LinkedIn Lead Sync MVP Apps</h1>
-
-    <!-- Add LinkedIn login button with an icon -->
-    <a href="{{ url_for('login') }}" style="text-decoration: none">
-      <button
-        style="
-          background-color: #0077b5;
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          cursor: pointer;
-        "
-      >
-        <img
-          src="static/images/icons8-linkedin-48.png"
-          alt="LinkedIn Icon"
-          style="vertical-align: middle; margin-right: 10px"
-        />
+    <div class="container">
+      <h1>LinkedIn Lead Sync MVP Apps</h1>
+      <a href="{{ url_for('login') }}" class="login-button">
+        <img src="static/images/icons8-linkedin-48.png" alt="LinkedIn Icon" />
         Login with LinkedIn
-      </button>
-    </a>
-
-    <!-- Add other content as needed -->
+      </a>
+    </div>
   </body>
 </html>

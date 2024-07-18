@@ -7,18 +7,14 @@ import pytz
 import pandas as pd
 from flask import Flask, redirect, request, session, url_for, render_template, jsonify
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
-from dotenv import dotenv_values,load_dotenv
+from dotenv import dotenv_values, load_dotenv
 from pathlib import Path
 import secrets
 import logging
 
 # Determine the correct .env file path
-#env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
-env_path = Path('.env')
-print(f"Loading {env_path} file")
-
-# Load environment variables into a dictionary
-env_vars = dotenv_values(dotenv_path=env_path)
+env_path = Path('.env.local') if Path('.env.local').exists() else Path('.env')
+logging.debug(f"Loading {env_path} file")
 
 # Load environment variables from .env file if it exists
 if env_path.exists():
@@ -43,24 +39,22 @@ API_VERSION = env_vars.get('API_VERSION')
 WEBHOOK_URL = env_vars.get('WEBHOOK_URL')
 
 # Debug print to verify that the variables are loaded correctly
-print("Environment variables loaded: ")
-print(f"CLIENT_ID: {CLIENT_ID}")
-print(f"CLIENT_SECRET: {CLIENT_SECRET}")
-print(f"REDIRECT_URI: {REDIRECT_URI}")
-print(f"API_VERSION: {API_VERSION}")
-print(f"WEBHOOK_URL: {WEBHOOK_URL}")
+logging.debug("Environment variables loaded: ")
+logging.debug(f"CLIENT_ID: {CLIENT_ID}")
+logging.debug(f"CLIENT_SECRET: {CLIENT_SECRET}")
+logging.debug(f"REDIRECT_URI: {REDIRECT_URI}")
+logging.debug(f"API_VERSION: {API_VERSION}")
+logging.debug(f"WEBHOOK_URL: {WEBHOOK_URL}")
 
 # Flask app setup
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 
-
-
 AUTHORIZATION_URL = 'https://www.linkedin.com/oauth/v2/authorization'
 TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken'
 
 # Lead sync parameters
-CMT_ACCOUNT_ID = env_vars.get('CMT_ACCOUNT_ID')
+#CMT_ACCOUNT_ID = env_vars.get('CMT_ACCOUNT_ID')
 START_TIME = int((datetime.now() - timedelta(days=180)).timestamp() * 1000)
 END_TIME = int(datetime.now().timestamp() * 1000)
 
@@ -150,7 +144,7 @@ def authorized():
     user = User(user_id)
     login_user(user)
 
-    return redirect(url_for('sync_leads'))
+    return redirect(url_for('ads_accounts'))
 
 @app.route('/')
 def index():
@@ -162,10 +156,27 @@ def chat():
     # Protected route
     return "Protected route, restricted to logged-in users only!"
 
-@app.route('/sync_leads')
+@app.route('/ads_accounts')
+@login_required
+def ads_accounts():
+    ads_accounts_df = get_ads_accounts()
+    if ads_accounts_df is not None and not ads_accounts_df.empty:
+        ads_accounts = ads_accounts_df.to_dict('records')
+    else:
+        ads_accounts = []
+
+    logging.debug(f"Ads accounts data: {ads_accounts}")
+    return render_template('ads_accounts.html', ads_accounts=ads_accounts)
+
+@app.route('/sync_leads', methods=['POST'])
 @login_required
 def sync_leads():
-    lead_sync_api_url = f'https://api.linkedin.com/rest/leadFormResponses?q=owner&owner=(sponsoredAccount:urn%3Ali%3AsponsoredAccount%3A{CMT_ACCOUNT_ID})&leadType=(leadType:SPONSORED)&limitedToTestLeads=false&submittedAtTimeRange=(start:{START_TIME},end:{END_TIME})&fields=ownerInfo,associatedEntityInfo,leadMetadataInfo,owner,leadType,versionedLeadGenFormUrn,id,submittedAt,testLead,formResponse,form:(hiddenFields,creationLocale,name,id,content)&count=10&start=0'
+    account_id = request.form.get('account_id')
+    logging.debug(f'Selected account_id: {account_id}')
+    if not account_id:
+        return "Account ID not provided", 400
+
+    lead_sync_api_url = f'https://api.linkedin.com/rest/leadFormResponses?q=owner&owner=(sponsoredAccount:urn%3Ali%3AsponsoredAccount%3A{account_id})&leadType=(leadType:SPONSORED)&limitedToTestLeads=false&submittedAtTimeRange=(start:{START_TIME},end:{END_TIME})&fields=ownerInfo,associatedEntityInfo,leadMetadataInfo,owner,leadType,versionedLeadGenFormUrn,id,submittedAt,testLead,formResponse,form:(hiddenFields,creationLocale,name,id,content)&count=10&start=0'
     headers = {
         'Authorization': f"Bearer {session['linkedin_token']}",
         'cache-control': 'no-cache',
@@ -180,7 +191,7 @@ def sync_leads():
         leads_data = response.json().get('elements', [])
         all_extracted_data = []
 
-        print(leads_data)
+        logging.debug(leads_data)
         for element in leads_data:
             response_id = element.get('id')
             form_id = extract_form_id(element.get('versionedLeadGenFormUrn'))
@@ -199,7 +210,7 @@ def sync_leads():
             submitted_at_utc = convert_epoch_to_utc(submitted_at)
 
             # Fetch questions using get_form_questions function
-            questions_info, form_name = get_form_questions(CMT_ACCOUNT_ID, form_id, session['linkedin_token'], API_VERSION)
+            questions_info, form_name = get_form_questions(account_id, form_id)
 
             # Extract question answers
             extracted_data = extract_question_answer(answers, response_id, form_id, questions_info, form_name, submitted_at_utc)
@@ -215,6 +226,11 @@ def sync_leads():
         # Convert the extracted data to a pandas DataFrame
         df = pd.DataFrame(all_extracted_data)
         logging.info(f"Lead data synced and converted to DataFrame. Number of records: {len(df)}")
+
+        # Save the DataFrame to a CSV file
+        csv_filename = 'leads.csv'
+        df.to_csv(csv_filename, index=False)
+        logging.info(f"Leads data saved to {csv_filename}")
 
         # Post JSON payload to webhook URL if it exists and is not an empty string
         if WEBHOOK_URL:
@@ -238,28 +254,10 @@ def sync_leads():
         logger.error(f"Response text: {response.text}")
         return jsonify({"error": "JSON decode error", "message": str(json_err), "response_text": response.text}), 500
 
+
 def extract_form_id(versioned_lead_gen_form_urn):
-    match = re.search(r':(\d+),', versioned_lead_gen_form_urn)
+    match = re.search(r'urn:li:leadGenForm:(\d+)', versioned_lead_gen_form_urn)
     return match.group(1) if match else None
-
-def get_form_questions(sponsored_account_id, form_id, access_token, linkedin_version):
-    url = f"https://api.linkedin.com/rest/leadForms?q=owner&owner=(sponsoredAccount:urn%3Ali%3AsponsoredAccount%3A{sponsored_account_id})&count=9999&start=0"
-    headers = {
-        'LinkedIn-Version': linkedin_version,
-        'X-Restli-Protocol-Version': '2.0.0',
-        'Authorization': f'Bearer {access_token}'
-    }
-
-    response = requests.get(url, headers=headers)
-    data = response.json() if response.status_code == 200 else {}
-
-    for element in data.get('elements', []):
-        if str(element.get('id')) == str(form_id):
-            questions = element.get('content', {}).get('questions', [])
-            questions_info = [(q['questionId'], q['question']['localized']['en_US']) for q in questions]
-            return questions_info, element.get('name', 'Unknown Form')
-
-    return [], 'Unknown Form'
 
 def extract_question_answer(answers, response_id, form_id, questions_info, form_name, submitted_at_utc):
     question_dict = dict(questions_info)
@@ -280,16 +278,65 @@ def extract_question_answer(answers, response_id, form_id, questions_info, form_
 
     return extracted_data
 
-def convert_epoch_to_utc(epoch_ms):
-    if epoch_ms:
-        try:
-            epoch_seconds = int(epoch_ms) / 1000
-            utc_datetime = datetime.utcfromtimestamp(epoch_seconds).replace(tzinfo=pytz.UTC)
-            return utc_datetime.strftime('%Y-%m-%d %H:%M:%S UTC')
-        except Exception as e:
-            logger.error(f"Error converting epoch to UTC: {e}")
+def convert_epoch_to_utc(epoch_time):
+    utc_time = datetime.utcfromtimestamp(epoch_time / 1000.0).strftime('%Y-%m-%d %H:%M:%S')
+    return utc_time
 
-    return None
+def get_ads_accounts():
+    accounts_url = 'https://api.linkedin.com/rest/adAccounts?q=search&search=(status:(values:List(ACTIVE)))'
+    headers = {
+        'Authorization': f"Bearer {session['linkedin_token']}",
+        'cache-control': 'no-cache',
+        'X-Restli-Protocol-Version': '2.0.0',
+        'LinkedIn-Version': API_VERSION
+    }
+
+    response = requests.get(accounts_url, headers=headers)
+
+    if response.status_code != 200:
+        logging.error(f"Failed to retrieve ad accounts: {response.text}")
+        return None
+
+    accounts_data = response.json()
+    if 'elements' not in accounts_data:
+        logging.error(f"Ad accounts data missing 'elements' key: {accounts_data}")
+        return None
+
+    accounts = accounts_data['elements']
+
+    data = []
+    for account in accounts:
+        account_id = account.get('id')
+        name = account.get('name', 'Unknown Name')
+        data.append({
+            'Account ID': account_id,
+            'Account Name': name
+        })
+
+    df = pd.DataFrame(data)
+    logging.debug(df)
+    return df
+
+def get_form_questions(sponsored_account_id, form_id):
+    url = f"https://api.linkedin.com/rest/leadForms?q=owner&owner=(sponsoredAccount:urn%3Ali%3AsponsoredAccount%3A{sponsored_account_id})&count=9999&start=0"
+    headers = {
+        'Authorization': f"Bearer {session['linkedin_token']}",
+        'cache-control': 'no-cache',
+        'X-Restli-Protocol-Version': '2.0.0',
+        'LinkedIn-Version': API_VERSION
+    }
+
+    response = requests.get(url, headers=headers)
+    data = response.json() if response.status_code == 200 else {}
+
+    for element in data.get('elements', []):
+        if str(element.get('id')) == str(form_id):
+            questions = element.get('content', {}).get('questions', [])
+            questions_info = [(q['questionId'], q['question']['localized']['en_US']) for q in questions]
+            return questions_info, element.get('name', 'Unknown Form')
+
+    return [], 'Unknown Form'
+
 
 def post_to_webhook(url, payload):
     headers = {
@@ -306,5 +353,5 @@ def post_to_webhook(url, payload):
             logger.error(f"Response status code: {response.status_code}")
             logger.error(f"Response text: {response.text}")
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == '__main__':
+    app.run(debug=True)
