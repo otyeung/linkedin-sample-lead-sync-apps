@@ -59,6 +59,10 @@
   <body>
     <div class="container">
       <h1>Select an Ad Account</h1>
+      <h4>
+        You need non-viewer access for lead sync and you need access with
+        associated company page :
+      </h4>
       <form action="{{ url_for('sync_leads') }}" method="post">
         <label for="account_id">Ad Account:</label>
         <select name="account_id" id="account_id">
